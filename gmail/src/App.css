@@ -1,0 +1,54 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh; /* Full height */
+}
+
+.app__body {
+  display: flex;
+  flex: 1; /* Take remaining space */
+  width: 100vw;
+}
+
+/* Default Light Theme */
+.app {
+  background-color: #f9f9f9; /* Light background */
+  color: #000; /* Light text */
+}
+
+.header {
+  background-color: #f1f3f4; /* Header background */
+  border-bottom: 1px solid #ccc;
+}
+
+.sidebar {
+  background-color: #fff; /* Sidebar background */
+  border-right: 1px solid #ccc;
+}
+
+/* Dark Theme */
+.dark-theme {
+  background-color: #121212; /* Dark background */
+  color: #ffffff; /* Dark text */
+}
+
+.dark-theme .header {
+  background-color: #1e1e1e; /* Dark header background */
+  border-bottom: 1px solid #444;
+}
+
+.dark-theme .sidebar {
+  background-color: #2c2c2c; /* Dark sidebar background */
+  border-right: 1px solid #444;
+}
+
+.dark-theme .header__search {
+  background-color: #444; /* Dark search box background */
+  border: 1px solid #444;
+  color: #ccc;
+}
+
+.dark-theme .mainContent {
+  background-color: #121212; /* Dark background */
+  color: #ffffff; /* White text in dark theme */
+}
