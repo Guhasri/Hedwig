@@ -1,256 +1,181 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-    Dialog, Box, InputBase, Button, MenuItem,
-    IconButton, Typography, Paper, Tooltip, FormControlLabel, Checkbox
+    Box, Button, Dialog, IconButton, InputBase, Paper, Tooltip, Typography, Menu, MenuItem
 } from '@mui/material';
-import { Close, DeleteOutline, AttachFile, InsertEmoticon, Schedule } from '@mui/icons-material';
-import { Picker } from 'emoji-mart';
-import { EditorState, convertToRaw, ContentState } from 'draft-js';
-import Editor from 'draft-js-plugins-editor';
-import createToolbarPlugin from 'draft-js-static-toolbar-plugin';
-import 'draft-js-static-toolbar-plugin/lib/plugin.css';
-import draftToHtml from 'draftjs-to-html';
-import 'react-datepicker/dist/react-datepicker.css';
-import { debounce } from 'lodash';
+import { AttachFile, DeleteOutline, InsertEmoticon, Close } from '@mui/icons-material';
+import { EditorState } from 'draft-js';
+import { Editor } from 'draft-js';
+import 'draft-js/dist/Draft.css'; // Ensure you have Draft.js styles imported
+import Picker from 'emoji-picker-react';
+import debounce from 'lodash/debounce';
+import { stateToHTML } from 'draft-js-export-html';
 
-const toolbarPlugin = createToolbarPlugin();
-const { Toolbar } = toolbarPlugin;
-const plugins = [toolbarPlugin];
-
-const dialogStyle = {
-    height: '90%',
-    width: '80%',
-    maxWidth: '100%',
-    maxHeight: '100%',
-    boxShadow: 'none',
-    borderRadius: '10px 10px 0 0',
-};
-
-const exampleGroups = [
-    { name: 'Group 1', emails: ['email1@example.com', 'email2@example.com'] },
-    { name: 'Group 2', emails: ['email3@example.com', 'email4@example.com'] },
-    { name: 'Group 3', emails: ['email5@example.com', 'email6@example.com'] },
-    { name: 'Group 4', emails: ['email7@example.com', 'email8@example.com'] }
+// Sample groups for demo purposes
+const groups = [
+    { label: 'Group 1', emails: ['user1@example.com', 'user2@example.com'] },
+    { label: 'Group 2', emails: ['user3@example.com', 'user4@example.com'] },
 ];
 
-const ComposeMail = ({ open, setOpenDrawer }) => {
-    const [data, setData] = useState({});
-    const [selectedGroups, setSelectedGroups] = useState([]);
-    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+const ComposeMail = ({ open, handleClose }) => {
+    const [data, setData] = useState({ to: '', cc: '', bcc: '', subject: '', body: '' });
     const [editorState, setEditorState] = useState(EditorState.createEmpty());
-    const [selectedFile, setSelectedFile] = useState(null);
-    const [scheduleDate, setScheduleDate] = useState(null);
-    const [showDropdown, setShowDropdown] = useState(false);
+    const [attachments, setAttachments] = useState([]);
+    const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+    
+    // For managing the dropdown menu
+    const [anchorEl, setAnchorEl] = useState(null);
 
-    const config = {
-        Username: process.env.REACT_APP_USERNAME,
-        Password: process.env.REACT_APP_PASSWORD,
-        Host: 'smtp.elasticemail.com',
-        Port: 2525,
+    // Handle editor changes
+    const handleEditorChange = (state) => {
+        setEditorState(state);
+        const contentState = state.getCurrentContent();
+        const bodyText = stateToHTML(contentState);
+        setData(prevData => ({ ...prevData, body: bodyText }));
     };
 
-    const onValueChange = useCallback((e) => {
-        if (e.target.name === 'to') {
-            const inputEmails = e.target.value.split(',').map(email => email.trim());
-            const selectedEmails = exampleGroups
-                .filter(group => selectedGroups.includes(group.name))
-                .flatMap(group => group.emails);
-
-            const allEmails = Array.from(new Set([...inputEmails, ...selectedEmails]));
-            setData(prevData => ({ ...prevData, [e.target.name]: allEmails.join(', ') }));
-        } else {
-            setData(prevData => ({ ...prevData, [e.target.name]: e.target.value }));
-        }
-    }, [selectedGroups]);
-
-    const handleGroupSelection = useCallback((groupName) => {
-        setSelectedGroups(prevGroups => {
-            const updatedGroups = prevGroups.includes(groupName)
-                ? prevGroups.filter(group => group !== groupName)
-                : [...prevGroups, groupName];
-    
-            const typedEmails = data.to ? data.to.split(',').map(email => email.trim()) : [];
-            const selectedEmails = exampleGroups
-                .filter(group => updatedGroups.includes(group.name))
-                .flatMap(group => group.emails);
-    
-            // Remove emails from the unselected group
-            const removedEmails = prevGroups.includes(groupName) 
-                ? exampleGroups.find(group => group.name === groupName)?.emails || [] 
-                : [];
-    
-            // Filter out the removed emails from the typed emails
-            const allEmails = Array.from(new Set([
-                ...typedEmails.filter(email => !removedEmails.includes(email)),
-                ...selectedEmails
-            ]));
-    
-            setData(prevData => ({ ...prevData, to: allEmails.join(', ') }));
-    
-            return updatedGroups;
-        });
-    }, [data.to]);
-
-    const handleEmojiSelect = useCallback((emoji) => {
-        const contentState = editorState.getCurrentContent();
-        const newContentState = ContentState.createFromText(contentState.getPlainText() + emoji.native);
-        setEditorState(EditorState.push(editorState, newContentState));
-        setShowEmojiPicker(false);
-    }, [editorState]);
-    
-
-    const handleEditorChange = useCallback((state) => {
-        setEditorState(state);
-        setData(prevData => ({ ...prevData, body: draftToHtml(convertToRaw(state.getCurrentContent())) }));
-    }, []);
-
-    const handleFileUpload = useCallback((event) => {
-        setSelectedFile(event.target.files[0]);
-    }, []);
-
-    const debouncedSaveDraft = useCallback(
-        debounce(() => {
-            const payload = {
-                ...data,
-                body: draftToHtml(convertToRaw(editorState.getCurrentContent())),
-                date: new Date(),
-                type: 'drafts',
-            };
-        }, 5000),
-        [data, editorState]
-    );
+    // Save draft with debounce to avoid multiple rapid saves
+    const saveDraft = useCallback(debounce(() => {
+        console.log('Draft saved:', data);
+    }, 2000), [data]);
 
     useEffect(() => {
-        debouncedSaveDraft();
-        return debouncedSaveDraft.cancel;
-    }, [data, editorState, debouncedSaveDraft]);
+        saveDraft();
+        return () => {
+            saveDraft.cancel();
+        };
+    }, [data, saveDraft]);
 
-    const sendEmail = useCallback(async (e) => {
-        e.preventDefault();
-
-        if (window.Email) {
-            try {
-                const message = await window.Email.send({
-                    ...config,
-                    To: data.to,
-                    From: "jeevan261122@gmail.com",
-                    Subject: data.subject,
-                    Body: data.body,
-                    Attachments: selectedFile ? [{ name: selectedFile.name, data: selectedFile }] : [],
-                });
-                alert(message);
-
-                const payload = {
-                    ...data,
-                    body: draftToHtml(convertToRaw(editorState.getCurrentContent())),
-                    date: new Date(),
-                    type: 'sent',
-                    attachment: selectedFile ? selectedFile.name : '',
-                };
-
-                setOpenDrawer(false);
-                clearAllFields();
-            } catch (error) {
-                console.error('Error sending email:', error);
-                alert('Failed to send email. Please try again.');
-            }
-        } else {
-            alert('Email service is not available');
+    // File upload handling
+    const handleFileUpload = (event) => {
+        const files = event.target.files;
+        if (files.length > 0) {
+            const newAttachments = Array.from(files).map(file => ({
+                name: file.name,
+                size: file.size,
+                type: file.type,
+                file
+            }));
+            setAttachments(prevAttachments => [...prevAttachments, ...newAttachments]);
         }
-    }, [data, editorState, selectedFile, config, setOpenDrawer]);
+    };
 
-    const clearAllFields = useCallback(() => {
+    // Remove attachment
+    const removeAttachment = (fileName) => {
+        setAttachments(prevAttachments => prevAttachments.filter(file => file.name !== fileName));
+    };
+
+    // Handle value changes
+    const onValueChange = (e) => {
         setData({
-            to: '',
-            cc: '',
-            bcc: '',
-            subject: '',
-            body: ''
+            ...data,
+            [e.target.name]: e.target.value
         });
-        setEditorState(EditorState.createEmpty());
-        setSelectedFile(null);
-        setShowDropdown(false);
-        setSelectedGroups([]);
-        setShowEmojiPicker(false);
-        setScheduleDate(null);
-    }, []);
+    };
 
-    const memoizedToolbar = useMemo(() => <Toolbar />, []);
+    // Emoji selection
+    const handleEmojiClick = (event, emojiObject) => {
+        const contentState = editorState.getCurrentContent();
+        const newContent = contentState.createEntity('emoji', 'IMMUTABLE', { emoji: emojiObject.emoji });
+        const entityKey = newContent.getLastCreatedEntityKey();
+        const newState = EditorState.set(editorState, { currentContent: newContent });
+        setEditorState(newState);
+    };
+
+    // Send email
+    const sendEmail = () => {
+        console.log("Email sent with data:", data);
+        console.log("Attachments:", attachments);
+    };
+
+    // Reset all fields
+    const resetFields = () => {
+        setData({ to: '', cc: '', bcc: '', subject: '', body: '' });
+        setEditorState(EditorState.createEmpty());
+        setAttachments([]);
+    };
+
+    // Open dropdown menu
+    const handleToClick = (event) => {
+        setAnchorEl(event.currentTarget);
+    };
+
+    // Close dropdown menu
+    const handleCloseDropdown = () => {
+        setAnchorEl(null);
+    };
+
+    // Handle group selection
+    const handleGroupSelect = (group) => {
+        const emails = group.emails.join(', ');
+        setData(prevData => ({ ...prevData, to: emails }));
+        handleCloseDropdown(); // Close the dropdown after selection
+    };
 
     return (
-        <Dialog open={open} PaperProps={{ sx: dialogStyle }}>
+        <Dialog open={open} onClose={handleClose} fullWidth maxWidth="md">
             <Box display="flex" flexDirection="column" height="100%">
-                <Box display="flex" justifyContent="space-between" padding="5px 10px" position="relative" bgcolor="#f2f6fc">
-                <Typography variant="subtitle1" style={{ fontSize: '1rem' }}>New Message</Typography>
-                <IconButton onClick={() => { setOpenDrawer(false); clearAllFields(); }}>
-                    <Close fontSize="small" />
-                </IconButton>
-            </Box>
- 
-                <Box padding="0 15px">
-                    <Box position="relative">
-                        <InputBase
-                            placeholder='Recipients'
-                            name="to"
-                            onChange={onValueChange}
-                            value={data.to || ''}
-                            fullWidth
-                            onClick={() => setShowDropdown(prev => !prev)}
-                        />
-                        {showDropdown && (
-                            <Box sx={{
-                                position: 'absolute',
-                                zIndex: 1,
-                                backgroundColor: 'white',
-                                border: '1px solid #ccc',
-                                borderRadius: '4px',
-                                marginTop: '2px',
-                                maxHeight: '170px',
-                                overflowY: 'auto',
-                                width: '100%'
-                            }}>
-                                <Typography variant="subtitle2" sx={{ padding: '5px', fontWeight: 'bold', fontSize: '13px' }}>
-                                Select Groups
-                                </Typography>
-                                {exampleGroups.map((group, index) => (
-                                    <MenuItem key={index}>
-                                        <FormControlLabel
-                                            control={
-                                                <Checkbox
-                                                    checked={selectedGroups.includes(group.name)}
-                                                    onChange={() => handleGroupSelection(group.name)}
-                                                />
-                                            }
-                                            label={group.name}
-                                            sx={{ '& .MuiTypography-root': { fontSize: '14px' } }}
-                                        />
-                                    </MenuItem>
-                                ))}
-                            </Box>
-                        )}
-                    </Box>
-                    <InputBase placeholder='Cc' name="cc" onChange={onValueChange} value={data.cc || ''} fullWidth />
-                    <InputBase placeholder='Bcc' name="bcc" onChange={onValueChange} value={data.bcc || ''} fullWidth />
-                    <InputBase placeholder='Subject' name="subject" onChange={onValueChange} value={data.subject || ''} fullWidth />
+                <Box display="flex" justifyContent="space-between" alignItems="center" padding="10px" bgcolor="#f2f6fc">
+                    <Typography variant="h6">New Message</Typography>
+                    <IconButton onClick={handleClose}>
+                        <Close />
+                    </IconButton>
                 </Box>
 
-                <Box flex="1" padding="15px" overflow="auto">
-                    {memoizedToolbar}
-                    <Paper variant="outlined" style={{ padding: '10px', minHeight: '300px' }}>
+                <Box padding="10px">
+                    <InputBase 
+                        placeholder="To" 
+                        onClick={handleToClick} // Open dropdown on click
+                        value={data.to} 
+                        fullWidth 
+                        readOnly // Make it read-only to trigger dropdown
+                    />
+                    <Menu 
+                        anchorEl={anchorEl} 
+                        open={Boolean(anchorEl)} 
+                        onClose={handleCloseDropdown}
+                    >
+                        {groups.map((group, index) => (
+                            <MenuItem key={index} onClick={() => handleGroupSelect(group)}>
+                                {group.label}
+                            </MenuItem>
+                        ))}
+                    </Menu>
+                    <InputBase placeholder="Cc" name="cc" onChange={onValueChange} value={data.cc || ''} fullWidth />
+                    <InputBase placeholder="Bcc" name="bcc" onChange={onValueChange} value={data.bcc || ''} fullWidth />
+                    <InputBase placeholder="Subject" name="subject" onChange={onValueChange} value={data.subject || ''} fullWidth sx={{ marginTop: '10px' }} />
+                </Box>
+
+                <Box sx={{ padding: '10px 15px', flexGrow: 1, overflow: 'auto' }}>
+                    <Paper elevation={0} sx={{ minHeight: '200px', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}>
                         <Editor
                             editorState={editorState}
                             onChange={handleEditorChange}
-                            plugins={plugins}
                         />
                     </Paper>
-                    {showEmojiPicker && <Picker onSelect={handleEmojiSelect} />}
                 </Box>
 
-                <Box display="flex" justifyContent="space-between" padding="10px 15px" alignItems="center">
-                    <div>
-                        <Button variant="contained" color="primary" onClick={sendEmail}>Send</Button>
-                        <Tooltip title="Attach file">
-                            <IconButton component="label">
+                {attachments.length > 0 && (
+                    <Box padding="10px">
+                        {attachments.map((file, index) => (
+                            <Box key={index} display="flex" alignItems="center" justifyContent="space-between" bgcolor="#f2f6fc" padding="5px" borderRadius="5px" marginBottom="5px">
+                                <Typography variant="body2">{file.name} ({Math.round(file.size / 1024)} KB)</Typography>
+                                <IconButton onClick={() => removeAttachment(file.name)} size="small">
+                                    <DeleteOutline fontSize="small" />
+                                </IconButton>
+                            </Box>
+                        ))}
+                    </Box>
+                )}
+
+                <Box display="flex" justifyContent="space-between" alignItems="center" padding="5px 15px" bgcolor="#f2f6fc">
+                    <Box display="flex" alignItems="center">
+                        <Tooltip title="Send">
+                            <Button variant="contained" color="primary" onClick={sendEmail}>
+                                Send
+                            </Button>
+                        </Tooltip>
+                        <Tooltip title="Attach files">
+                            <IconButton component="label" sx={{ ml: 1 }}>
                                 <AttachFile />
                                 <input type="file" hidden onChange={handleFileUpload} />
                             </IconButton>
@@ -260,17 +185,15 @@ const ComposeMail = ({ open, setOpenDrawer }) => {
                                 <InsertEmoticon />
                             </IconButton>
                         </Tooltip>
-                        <Tooltip title="Schedule Send">
-                            <IconButton onClick={() => setScheduleDate(new Date())}>
-                                <Schedule />
-                            </IconButton>
-                        </Tooltip>
-                    </div>
-                    <Tooltip title="Clear all fields">
-                        <IconButton onClick={clearAllFields}>
-                            <DeleteOutline />
-                        </IconButton>
-                    </Tooltip>
+                        {showEmojiPicker && (
+                            <Box position="absolute" zIndex={1} top="60%" left="30%">
+                                <Picker onEmojiClick={handleEmojiClick} />
+                            </Box>
+                        )}
+                    </Box>
+                    <IconButton onClick={resetFields}>
+                        <DeleteOutline />
+                    </IconButton>
                 </Box>
             </Box>
         </Dialog>
