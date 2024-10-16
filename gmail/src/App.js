@@ -6,9 +6,10 @@ import Sidebar from './components/Sidebar';
 import MainContent from './components/MainContent';
 import DraftsList from './components/DraftsList';
 import StarredEmails from './components/StarredEmails';
-import BinEmails from './components/BinEmails'; // Import the BinEmails component
+import BinEmails from './components/BinEmails';
 import AllMails from './components/AllMails';
-import LoginRegister from './components/LoginRegister'; // Import AllMails component
+import SentEmails from './components/SentEmails'; // Import SentEmails component
+import LoginRegister from './components/LoginRegister';
 import './App.css';
 
 function App() {
@@ -46,7 +47,7 @@ function App() {
               <Header toggleSidebar={toggleSidebar} onToggleTheme={toggleTheme} />
               <div className="app__body">
                 {isSidebarOpen && <Sidebar />}
-                <DraftsList /> {/* DraftsList will handle drafts */}
+                <DraftsList />
               </div>
             </div>
           }
@@ -58,7 +59,7 @@ function App() {
               <Header toggleSidebar={toggleSidebar} onToggleTheme={toggleTheme} />
               <div className="app__body">
                 {isSidebarOpen && <Sidebar />}
-                <StarredEmails /> {/* Component to display starred emails */}
+                <StarredEmails />
               </div>
             </div>
           }
@@ -70,7 +71,19 @@ function App() {
               <Header toggleSidebar={toggleSidebar} onToggleTheme={toggleTheme} />
               <div className="app__body">
                 {isSidebarOpen && <Sidebar />}
-                <BinEmails /> {/* Component to display bin emails */}
+                <BinEmails />
+              </div>
+            </div>
+          }
+        />
+        <Route
+          path="/sent" // Route for Sent Emails
+          element={
+            <div className={`app ${isDarkTheme ? 'dark-theme' : ''}`}>
+              <Header toggleSidebar={toggleSidebar} onToggleTheme={toggleTheme} />
+              <div className="app__body">
+                {isSidebarOpen && <Sidebar />}
+                <SentEmails /> {/* Component to display sent emails */}
               </div>
             </div>
           }
