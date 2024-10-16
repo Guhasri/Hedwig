@@ -1,4 +1,4 @@
-// server.js
+// src/server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -6,8 +6,10 @@ const authRoutes = require('./routes/auth');
 const inboxRoutes = require('./routes/inbox');
 const draftRoutes = require('./routes/drafts');
 const starredRoute = require('./routes/starred');
-const binEmailsRoute = require('./routes/binEmails'); // Import bin emails route
-const allMailsRoute = require('./routes/allMails'); // Import all mails route
+const binEmailsRoute = require('./routes/binEmails');
+const sendRoute = require('./routes/send'); // Import send route
+const sentMailsRoute = require('./routes/sentMails'); // Import sentMails route
+const allMailsRoute = require('./routes/allMails');
 
 require('dotenv').config();
 
@@ -25,8 +27,10 @@ app.use('/api/auth', authRoutes);
 app.use('/api/inbox', inboxRoutes);
 app.use('/api/drafts', draftRoutes);
 app.use('/api/starred', starredRoute);
-app.use('/api/binEmails', binEmailsRoute); // Use bin emails route
-app.use('/api/allMails', allMailsRoute); // Use all mails route
+app.use('/api/binEmails', binEmailsRoute);
+app.use('/api/send', sendRoute); // Added send route
+app.use('/api/sent', sentMailsRoute); // Added sentMails route
+app.use('/api/allMails', allMailsRoute);
 
 const PORT = process.env.PORT || 1973;
 app.listen(PORT, () => {
