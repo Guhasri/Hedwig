@@ -1,4 +1,3 @@
-// src/components/Sidebar.js
 import React, { useState, useEffect } from 'react';
 import './Sidebar.css';
 import { FiEdit2, FiInbox, FiStar, FiSend, FiUsers, FiFile, FiTrash2, FiMail } from 'react-icons/fi';
@@ -29,6 +28,10 @@ const Sidebar = ({ isDarkTheme }) => {
         navigate('/starred'); // Navigate to Starred Emails
     };
 
+    const handleSentClick = () => {
+        navigate('/sent'); // Navigate to Sent Emails
+    };
+
     const handleBinClick = () => {
         navigate('/bin'); // Navigate to Bin Emails
     };
@@ -46,11 +49,11 @@ const Sidebar = ({ isDarkTheme }) => {
                 <ul className="sidebar__menu">
                     <li onClick={handleInboxClick}><FiInbox /> Inbox</li>
                     <li onClick={handleStarredClick}><FiStar /> Starred</li>
-                    <li><FiSend /> Sent</li>
+                    <li onClick={handleSentClick}><FiSend /> Sent</li> {/* Added Sent button */}
                     <li><FiUsers /> Groups</li>
                     <li onClick={handleDraftsClick}><FiFile /> Drafts</li>
                     <li onClick={handleBinClick}><FiTrash2 /> Bin</li>
-                    <li onClick={handleAllMailsClick}><FiMail /> All Mail</li> {/* All Mails Button */}
+                    <li onClick={handleAllMailsClick}><FiMail /> All Mail</li>
                 </ul>
             </aside>
 
