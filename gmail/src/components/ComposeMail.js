@@ -16,15 +16,14 @@ const groups = [
 ];
 
 const ComposeMail = ({ open, handleClose }) => {
-    const [loggedInUserEmail, setLoggedInUserEmail] = useState(''); // State to hold logged-in user email
+    const [loggedInUserEmail, setLoggedInUserEmail] = useState('');
 
-    // Fetch logged-in user's email from localStorage
     useEffect(() => {
         const user = JSON.parse(localStorage.getItem('user'));
         if (user && user.user && user.user.emailId) {
             setLoggedInUserEmail(user.user.emailId);
         }
-    }, []); // Run only on component mount
+    }, []);
 
     const [data, setData] = useState({ to: '', from: loggedInUserEmail, cc: '', bcc: '', subject: '', body: '' });
     const [editorState, setEditorState] = useState(EditorState.createEmpty());
@@ -66,34 +65,52 @@ const ComposeMail = ({ open, handleClose }) => {
         setEditorState(newState);
     };
 
-    const sendEmail = () => {
-        console.log("Email sent with data:", data);
-        console.log("Attachments:", attachments);
+    const sendEmail = async () => {
+        try {
+            const emailData = {
+                to: data.to,
+                from: loggedInUserEmail,
+                cc: data.cc,
+                bcc: data.bcc,
+                subject: data.subject,
+                body: data.body,
+                date: new Date(),
+                attachments: attachments
+            };
+
+            console.log("Attempting to send email with data:", emailData);
+
+            const response = await axios.post('http://localhost:1973/api/send', emailData);
+
+            console.log('Response from server:', response.data);
+
+            resetFields();
+            handleClose();
+        } catch (error) {
+            console.error('Error sending email:', error);
+        }
     };
 
-    // Reset all fields
     const resetFields = () => {
         setData({ to: '', cc: '', bcc: '', subject: '', body: '' });
         setEditorState(EditorState.createEmpty());
         setAttachments([]);
     };
 
-    // Save as draft
     const saveAsDraft = async () => {
         try {
             const draftData = {
                 to: data.to,
-                from: loggedInUserEmail, // Use loggedInUserEmail for the 'from' field
+                from: loggedInUserEmail,
                 cc: data.cc,
                 bcc: data.bcc,
                 subject: data.subject,
                 body: data.body,
-                attachments: attachments, 
+                attachments: attachments,
             };
 
             console.log('Attempting to save draft with data:', draftData);
 
-            // Save the draft data to the MongoDB database using axios
             const response = await axios.post('http://localhost:1973/api/drafts', draftData);
 
             console.log('Response from server:', response.data);
@@ -112,7 +129,7 @@ const ComposeMail = ({ open, handleClose }) => {
 
     const handleGroupSelect = (group) => {
         const emails = group.emails.join(', ');
-        setData(prevData => ({ ...prevData, to: emails }));
+        setData(prevData => ({ ...prevData, to: prevData.to ? `${prevData.to}, ${emails}` : emails }));
         handleCloseDropdown();
     };
 
@@ -133,9 +150,10 @@ const ComposeMail = ({ open, handleClose }) => {
                     <InputBase 
                         placeholder="To" 
                         onClick={handleToClick} 
+                        name="to" 
+                        onChange={onValueChange}  // Enable typing
                         value={data.to} 
                         fullWidth 
-                        readOnly 
                     />
                     <Menu 
                         anchorEl={anchorEl} 
